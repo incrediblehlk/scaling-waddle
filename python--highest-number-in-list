@@ -1,0 +1,26 @@
+# Asks the user for a list of numbers, separated with spaces. 
+# Returns the highest value number (regardless of repeats). 
+# ==========================================================
+
+# ask the user for a list of numbers
+print ("Instructions:")
+print (" ")
+print ("Enter some numbers,")
+print ("in any order.")
+print ("Separate them with spaces.")
+print ("Repeated numbers are supported.")
+print (" ")
+str_my_numbers = raw_input ("Numbers: ")
+
+# split up the numbers from the list into individual numbers
+str_my_numbers_split = str_my_numbers.split(" ")
+
+# turn into integers instead of strings
+int_my_numbers_split = list(map(int, str_my_numbers_split))
+
+# find the second largest integer
+int_my_largest_number = max(int_my_numbers_split)
+
+# convert the number back to a string to print it in an output
+str_my_largest_number = str(int_my_largest_number)
+print ("The largest number is: " + str_my_largest_number)
