@@ -1,0 +1,36 @@
+# Asks user to input a phrase and a letter, checks the number of
+# times that the letter occurs in the phrase, and prints the results
+# ==================================================================
+
+# ask the user for a phrase to check the number of letters in
+my_phrase = raw_input("Enter a phrase: ")
+
+
+# make sure the phrase is a string
+my_phrase = str(my_phrase)
+print('Your phrase is ' + my_phrase)
+
+
+# ask the user for a letter
+my_letter = raw_input("Enter a letter: ")
+print('Your letter is ' + my_letter)
+
+
+# check how many times the letter occurs in the phrase
+check_my_letter = my_phrase.count(my_letter)
+
+
+# does the letter occur yes or no
+if check_my_letter > 0:
+    print ('YES, your letter is in the phrase.')
+else:
+    print ('NO, your letter is not in the phrase.')
+
+
+# get a string version of the letter count for printing
+str_check_my_letter = str(check_my_letter)
+
+
+# if the letter occurs say how many times it happens
+if check_my_letter > 0:
+    print (my_letter + " occurs " + str_check_my_letter + " times in the phrase.")
