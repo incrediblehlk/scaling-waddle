@@ -1,0 +1,652 @@
+#-------------------------------------------------------------------------------
+# Name:        module1
+# Purpose:
+#
+# Author:      hlk
+#
+# Created:     03/12/2015
+# Copyright:   (c) hlk 2015
+# Licence:     <your licence>
+#-------------------------------------------------------------------------------
+
+print "Loading..."
+print ""
+
+# IMPORT STUFF
+
+# Arc
+import arcpy
+from arcpy import env
+
+# User-input file validity checker
+import os
+import os.path
+
+
+
+# Welcome the user and give instructions on how Glober works
+
+print "===================="
+print "Welcome to Glober!"
+print "===================="
+print ""
+print "Using this program, you can make a paper globe from any"
+print "2-dimensional map of the Earth, or even another planet!"
+print ""
+print "Let's get started!"
+print ""
+print "===================="
+print "1. Location of Workspace"
+print "===================="
+print ""
+print "The Workspace is a folder where you will save your 'input' and 'output' files."
+print "Glober automatically creates sub-folders for you to keep things organized."
+print "Simply open the folder you would like to use,"
+print "right-click, Properties, and copy the Location."
+print ""
+print "TEST FILE: Z:/Geog490_3/Student_Data/hlk/final"
+print ""
+print ""
+
+# Have the user set the location of their workspace
+
+print "Ready?"
+
+my_env = raw_input('Paste the file location of your workspace here: ')
+
+
+
+# Check that this is a valid file
+
+if os.path.exists(my_env):
+    print ""
+    print "* CONFIRMED: File exists and is readable!"
+else:
+    print ""
+    print "You entered: " + my_env
+    print "ERROR: File is invalid, missing, or not readable!"
+    print ""
+    raw_input('Press Enter to quit. Re-open Glober to restart.')
+    exit()
+
+env.workspace = my_env
+
+print ""
+print "* CONFIRMED. Workspace is set to: "
+print env.workspace
+print ""
+#raw_input("Press Enter to continue...")
+
+print ""
+print "===================="
+print "2. Universal Trans-Mercator (UTM) zones"
+print "===================="
+print ""
+print "You will need a polygon shape file of UTM zones."
+print "You will need the one from the ArcGIS website, called 'World UTM Grid'."
+print "Download it here: http://www.arcgis.com/home/item.html?id=715d4d6a36cc4b019bd84cb34ce37647"
+print ""
+print "Once downloaded, drag and drop the file from your downloads into ArcMap."
+print "Right-click the layer in the Table of Contents."
+print "Data > Export Data"
+print "Export 'All Features' using 'this layer's source data'."
+print "Click the small folder to set where to save it."
+print "Save it in the workspace file that you defined in Step 1."
+print "Be sure to save it as a shape file."
+print ""
+print "TEST FILE: ArcUTMTester.shp"
+print ""
+print ""
+
+# Have the user input the UTM shape file of all of the zones
+
+print "Ready?"
+
+my_utm = raw_input('Enter the name of your UTM shape file, including the .shp extension: ')
+print ""
+
+## set the input feature class equal to this user input
+
+infc = my_utm
+
+print "* CONFIRMED. UTM file location is: "
+print env.workspace + "\\" + infc
+print ""
+raw_input("Ready? Press Enter to continue...")
+
+print ""
+print "===================="
+print "3. The map to Globe-ify!"
+print "===================="
+print ""
+print "Create a map of the world, saved as an .MXD file."
+print "This can be in any projection and include any features you like."
+print "Create the map as you would like it to appear projected around the globe."
+print ""
+print "TEST FILE: WorldImages.mxd"
+print ""
+print ""
+print "Ready?"
+print ""
+my_mxd = raw_input('Paste the name of your .MXD, including the .mxd extension, here: ')
+print "* CONFIRMED. Your map file location is: "
+print env.workspace + "\\" + my_mxd
+print ""
+print "===================="
+print "4. Number of strips to use"
+print "===================="
+print ""
+print "How many strips would you like to use to create your globe?"
+print "The globe will be assembled using either 24, 40, or 120 strips."
+print "Half of the strips create the northern hemisphere, and half create the southern."
+print "Use more strips to create a more accurate, globe that takes longer to assemble."
+print ""
+print ""
+
+# Ask the user for the number of strips and run checks
+
+print "Ready?"
+print ""
+my_mxd = raw_input('Enter the number of strips you would like to use - 24, 40, or 120: ')
+
+if my_strips in ['24', '40', '120']:
+    print ""
+    print "* CONFIRMED: Your globe will have: *** " + my_strips + " *** strips for assembly."
+    print ""
+else:
+    print "ERROR: Invalid entry. You must use 24, 40, or 120 strips."
+    print ""
+    raw_input('Press Enter to quit. Re-open Glober to restart.')
+    exit()
+
+print ""
+raw_input("Ready? Press Enter to continue...")
+print ""
+print "********************"
+print "ALL READY!"
+print "Glober will now process your data."
+print "********************"
+
+print ""
+print "Processing..."
+print ""
+
+
+# ===============
+
+# FIX THE UTM SHAPE FILE
+#
+# The UTM shape file contains extra zones (No Zones) that throw errors when used
+# and we only need a centered zone on the north hemisphere
+# and the south hemisphere
+# and not all zones for the entire grid
+#
+# These codes fix all that
+
+# ===============
+
+
+# Create unique name for UTM fix file so that program can be run again without errors
+
+unique_name = arcpy.CreateUniqueName("UTM_Fix.shp")
+
+# Create copy of UTM file so the original isn't messed with
+
+in_data = my_utm
+out_data = unique_name
+data_type = ""
+
+arcpy.Copy_management(in_data, out_data, data_type)
+
+print ""
+print "* SUCCESS: Copy of UTM file Glober will work with saved as:"
+print unique_name
+
+
+# Create an update cursor that deletes any features where the Zone values are 0 (This removes unusable zones)
+
+fc = unique_name
+
+cursor = arcpy.da.UpdateCursor(fc, ["ZONE"])
+
+with arcpy.da.UpdateCursor(fc, ["ZONE"]) as cursor:
+    for row in cursor:
+        if row[0] == 0:
+            cursor.deleteRow()
+del row
+del cursor
+
+print ""
+print "* SUCCESS: NoZones deleted."
+
+
+# Remove polygons from dataset where rows are not H or S (these are about centered north and south)
+
+fc = unique_name
+
+# debug the row delete script - part 1
+#with arcpy.da.UpdateCursor(fc, ["ROW_"]) as cursor:
+#    for row in cursor:
+#        print row
+
+# print "those were all before deletion"
+
+cursor = arcpy.da.UpdateCursor(fc, ["ROW_"])
+
+with arcpy.da.UpdateCursor(fc, ["ROW_"]) as cursor:
+    for row in cursor:
+        if row[0] not in ['H', 'S']:
+            cursor.deleteRow()
+del row
+del cursor
+
+print ""
+print "* SUCCESS: Remaining UTM Row values are:"
+
+
+with arcpy.da.UpdateCursor(fc, ["ROW_"]) as cursor:
+    for row in cursor:
+        print sorted ({row[0] for row in cursor})
+
+
+# Add field for UTM zone calculation
+
+arcpy.AddField_management(unique_name, "UTM_Zone", "STRING", 5000)
+
+print ""
+print "* SUCCESS: UTM zone spatial reference field created"
+
+
+# Calculate UTM zone of each polygon
+
+# Set local variables
+inFeatures = unique_name
+utmField = "UTM_zone"
+
+# Execute CalculateUTMZone
+arcpy.CalculateUTMZone_cartography(inFeatures, utmField)
+
+print ""
+print "* SUCCESS: UTM spatial references calculated and added to shapefile."
+
+
+# add UTM shapefile to their MXD, put it at the bottom so that it is not visible on print
+
+
+try:
+    mxd = arcpy.mapping.MapDocument(my_mxd)
+
+    df = arcpy.mapping.ListDataFrames(mxd)[0]
+
+
+    newlayer1 = arcpy.mapping.Layer(unique_name)
+    print newlayer1
+    arcpy.mapping.AddLayer(df, newlayer1, "BOTTOM")  
+
+    arcpy.RefreshActiveView()
+    arcpy.RefreshTOC()
+
+    # save the map to persist the added layer
+    mxd.save()
+    print "* SUCCESS: UTM shapefile successfully added to map file."
+
+except Exception as ex:
+    print ex.args[0]
+
+
+print ""
+print "********** PART 1 SUCCESS **********"
+print ""
+print ""
+
+
+## ===============
+
+## MAKE THE STRIPS DEPENDING ON DESIRED GLOBE SIZE
+
+## ===============
+
+# set the number of strips you wish to make - 120 for all strips, 40 for 3 strips at a time, or 24 for 5 strips at a time
+# other intervals would cause overlap or would not print correctly due to how the strips display (needs to be a factor of 120, and fit on 8.5x11 page)
+
+# note there are 2 of each strip (north and south)
+
+
+# if 120 strips, use all strips - proceed
+
+if my_strips in ['120']:
+    print "Using all *** 120 *** strips"
+elif my_strips in ['40']:
+    print "Using *** 40 *** strips"
+elif my_strips in ['24']:
+    print "Using *** 24 *** strips"
+
+## ===============
+
+## 120 STRIP VERSION
+
+## ===============
+
+
+if my_strips in ['120']:
+    onetwenty_f = 1
+    onetwenty_a = 0
+    onetwenty_b = 60
+    onetwenty_strips = [x * onetwenty_f + 1 for x in range(onetwenty_a, onetwenty_b)]
+
+    print ""
+    print "Strips from UTM fix file to use:"
+    print onetwenty_strips
+
+    print ""
+    print "* SUCCESS: Using all zones, no deleted rows."
+
+    # clear the current spatial reference of the file
+
+    try:
+        newSpatialReference = arcpy.SpatialReference()  
+        newSpatialReference.loadFromString('{B286C06B-0879-11D2-AACA-00C04FA33C20}')
+        print ""
+        print "* SUCCESS: Map's Spatial Reference cleared."
+
+    except Exception as ex:
+        print ex.args[0]
+
+    # all done, instruct user on DDPages
+
+    print ""
+    print "********** PART 2 SUCCESS **********"
+    print ""
+    print ""
+
+    print ""
+    print "********** COMPLETE! **********"
+    print ""
+    print ""
+
+    print "===================="
+    print "Finalize your Globe!"
+    print "===================="
+    print ""
+    print "To finalize your globe, open your .MXD."
+    print "You will notice that a UTM zone shapefile has been added to your map."
+    print ""
+    print ""
+    print ""
+    raw_input("Ready? Press Enter to continue...")
+    print ""
+    print ""
+    print "===================="
+    print "1. Set up Data Driven Pages"
+    print "===================="
+    print ""
+    print "1. Turn on the Data Driven Pages toolbar."
+    print "2. Open the Setup Data Driven Pages dialog box."
+    print "3. In 'Layer', select the UTM Zone shape file."
+    print "4. In 'Name Field', select 'ZONE'."
+    print "5. In 'Sort Field', select 'ZONE'."
+    print "6. In 'Spatial Reference', select 'UTM_ZONE'."
+    print ""
+    print ""
+    print ""
+    raw_input("Ready? Press Enter to continue...")
+    print ""
+    print ""
+    print "===================="
+    print "2. Navigate Data Driven Pages"
+    print "===================="
+    print ""
+    print "You can navigate your newly created globe strips using the arrows on the"
+    print "Data Driven Pages toolbar. Check that they are displaying as expected."
+    print ""
+    print ""
+    raw_input("Ready? Press Enter to continue...")
+    print ""
+    print ""
+    print "===================="
+    print "3. Print Strips"
+    print "===================="
+    print ""    
+    print "When printing your map as usual, you should notice that instead of one"
+    print "sheet, your map is now many sheets. Each strip will print on its own"
+    print "sheet of paper."
+    print ""
+    print "Assemble your strips together, using any extra paper as 'tabs' to glue."
+    print ""
+    print ""
+    print "********** CONGRATULATIONS! **********"
+    print "****** Your globe is complete! *******"
+            
+
+
+## ===============
+
+## 40 STRIP VERSION
+
+## ===============
+
+
+elif my_strips in ['40']:
+    forty_f = 3
+    forty_a = 0
+    forty_b = 20
+    forty_strips = [x * forty_f + 1 for x in range(forty_a, forty_b)]
+
+    print ""
+    print "* SUCCESS: Strips from UTM fix file to use:"
+    print forty_strips
+
+    # Delete rows if not in forty_strips
+
+    fc = unique_name
+
+    cursor = arcpy.da.UpdateCursor(fc, ["ZONE"])
+
+    with arcpy.da.UpdateCursor(fc, ["ZONE"]) as cursor:
+        for row in cursor:
+            if row[0] not in forty_strips:
+                cursor.deleteRow()
+    del row
+    del cursor
+
+    # Print remaining rows as check
+
+    print ""
+    print "* SUCCESS: Deleted extra zones. Zones remaining: "
+    
+    with arcpy.da.UpdateCursor(fc, ["ZONE"]) as cursor:
+        for row in cursor:
+            print row
+
+    # clear the current spatial reference of the file
+
+    try:
+        newSpatialReference = arcpy.SpatialReference()  
+        newSpatialReference.loadFromString('{B286C06B-0879-11D2-AACA-00C04FA33C20}')
+        print ""
+        print "* SUCCESS: Map's Spatial Reference cleared."
+
+    except Exception as ex:
+        print ex.args[0]
+
+    # all done, instruct user on DDPages
+
+    print ""
+    print "********** PART 2 SUCCESS **********"
+    print ""
+    print ""
+
+    print ""
+    print "********** COMPLETE! **********"
+    print ""
+    print ""
+
+    print "===================="
+    print "Finalize your Globe!"
+    print "===================="
+    print ""
+    print "To finalize your globe, open your .MXD."
+    print "You will notice that a UTM zone shapefile has been added to your map."
+    print ""
+    print ""
+    print ""
+    raw_input("Ready? Press Enter to continue...")
+    print ""
+    print ""
+    print "===================="
+    print "1. Set up Data Driven Pages"
+    print "===================="
+    print ""
+    print "1. Turn on the Data Driven Pages toolbar."
+    print "2. Open the Setup Data Driven Pages dialog box."
+    print "3. In 'Layer', select the UTM Zone shape file."
+    print "4. In 'Name Field', select 'ZONE'."
+    print "5. In 'Sort Field', select 'ZONE'."
+    print "6. In 'Spatial Reference', select 'UTM_ZONE'."
+    print ""
+    print ""
+    print ""
+    raw_input("Ready? Press Enter to continue...")
+    print ""
+    print ""
+    print "===================="
+    print "2. Navigate Data Driven Pages"
+    print "===================="
+    print ""
+    print "You can navigate your newly created globe strips using the arrows on the"
+    print "Data Driven Pages toolbar. Check that they are displaying as expected."
+    print ""
+    print ""
+    raw_input("Ready? Press Enter to continue...")
+    print ""
+    print ""
+    print "===================="
+    print "3. Print Strips"
+    print "===================="
+    print ""    
+    print "When printing your map as usual, you should notice that instead of one"
+    print "sheet, your map is now many sheets. Each strip will print on its own"
+    print "sheet of paper."
+    print ""
+    print "Assemble your strips together, using any extra paper as 'tabs' to glue."
+    print ""
+    print ""
+    print "********** CONGRATULATIONS! **********"
+    print "****** Your globe is complete! *******"
+            
+
+
+## ===============
+
+## 24 STRIP VERSION
+
+## ===============
+
+elif my_strips in ['24']:
+    twentyfour_f = 5
+    twentyfour_a = 0
+    twentyfour_b = 12
+    twentyfour_strips = [x * twentyfour_f + 1 for x in range(twentyfour_a, twentyfour_b)]
+
+    print ""
+    print "* SUCCESS: Strips from UTM fix file to use: "
+    print twentyfour_strips
+
+    # Delete rows if not in twentyfour_strips
+    
+    fc = unique_name
+
+    cursor = arcpy.da.UpdateCursor(fc, ["ZONE"])
+
+    with arcpy.da.UpdateCursor(fc, ["ZONE"]) as cursor:
+        for row in cursor:
+            if row[0] not in twentyfour_strips:
+                cursor.deleteRow()
+    del row
+    del cursor
+
+    # Print remaining rows as check
+
+    print ""
+    print "* SUCCESS: Deleted extra zones. Zones remaining: "
+    
+    with arcpy.da.UpdateCursor(fc, ["ZONE"]) as cursor:
+        for row in cursor:
+            print row
+
+    # clear the current spatial reference of the file
+
+    try:
+        newSpatialReference = arcpy.SpatialReference()  
+        newSpatialReference.loadFromString('{B286C06B-0879-11D2-AACA-00C04FA33C20}')
+        print ""
+        print "* SUCCESS: Map's Spatial Reference cleared."
+
+    except Exception as ex:
+        print ex.args[0]
+
+            # all done, instruct user on DDPages
+
+    print ""
+    print "********** PART 2 SUCCESS **********"
+    print ""
+    print ""
+
+    print ""
+    print "********** COMPLETE! **********"
+    print ""
+    print ""
+
+    print "===================="
+    print "Finalize your Globe!"
+    print "===================="
+    print ""
+    print "To finalize your globe, open your .MXD."
+    print "You will notice that a UTM zone shapefile has been added to your map."
+    print ""
+    print ""
+    print ""
+    raw_input("Ready? Press Enter to continue...")
+    print ""
+    print ""
+    print "===================="
+    print "1. Set up Data Driven Pages"
+    print "===================="
+    print ""
+    print "1. Turn on the Data Driven Pages toolbar."
+    print "2. Open the Setup Data Driven Pages dialog box."
+    print "3. In 'Layer', select the UTM Zone shape file."
+    print "4. In 'Name Field', select 'ZONE'."
+    print "5. In 'Sort Field', select 'ZONE'."
+    print "6. In 'Spatial Reference', select 'UTM_ZONE'."
+    print ""
+    print ""
+    print ""
+    raw_input("Ready? Press Enter to continue...")
+    print ""
+    print ""
+    print "===================="
+    print "2. Navigate Data Driven Pages"
+    print "===================="
+    print ""
+    print "You can navigate your newly created globe strips using the arrows on the"
+    print "Data Driven Pages toolbar. Check that they are displaying as expected."
+    print ""
+    print ""
+    raw_input("Ready? Press Enter to continue...")
+    print ""
+    print ""
+    print "===================="
+    print "3. Print Strips"
+    print "===================="
+    print ""    
+    print "When printing your map as usual, you should notice that instead of one"
+    print "sheet, your map is now many sheets. Each strip will print on its own"
+    print "sheet of paper."
+    print ""
+    print "Assemble your strips together, using any extra paper as 'tabs' to glue."
+    print ""
+    print ""
+    print "********** CONGRATULATIONS! **********"
+    print "****** Your globe is complete! *******"
+            
