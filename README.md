@@ -1,2 +1,4 @@
 # scaling-waddle
-Python snippets from CodePad from college, storing here as well
+Python snippets from college
+
+Note: Some are cross-posted on my CodePad
